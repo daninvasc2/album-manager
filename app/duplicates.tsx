@@ -1,8 +1,8 @@
 import { useState, useCallback } from "react";
 import { View, Text, FlatList, Pressable, Alert, TextInput, StyleSheet } from "react-native";
-import * as Sharing from "expo-sharing";
-import * as FileSystem from "expo-file-system";
+import * as Clipboard from "expo-clipboard";
 import { getDuplicates, addSticker, removeSticker } from "../database/db";
+import { isValidStickerCode, normalizeCode } from "../data/album";
 import { useFocusEffect } from "expo-router";
 import { colors } from "../theme";
 
@@ -25,8 +25,17 @@ export default function DuplicatesScreen() {
   }
 
   async function handleAdd() {
-    const code = addInput.trim().toUpperCase();
+    const code = normalizeCode(addInput);
     if (!code) return;
+
+    if (!isValidStickerCode(code)) {
+      Alert.alert(
+        "Figurinha inválida",
+        `"${code}" não existe no álbum. Verifique o código (ex: BRA1, FWC5, CC3).`
+      );
+      return;
+    }
+
     await addSticker(code);
     setAddInput("");
     await loadDuplicates();
@@ -37,9 +46,9 @@ export default function DuplicatesScreen() {
     await loadDuplicates();
   }
 
-  async function handleExport() {
+  async function handleCopy() {
     if (duplicates.length === 0) {
-      Alert.alert("Vazio", "Você não tem figurinhas repetidas para exportar.");
+      Alert.alert("Vazio", "Você não tem figurinhas repetidas para copiar.");
       return;
     }
 
@@ -60,16 +69,10 @@ export default function DuplicatesScreen() {
       nums.sort((a, b) => a - b);
       lines.push(`${prefix} ${nums.join(", ")}`);
     }
-    const content = lines.join(";\n");
+    const content = lines.join("; ");
 
-    const fileUri = FileSystem.documentDirectory + "repetidas.txt";
-    await FileSystem.writeAsStringAsync(fileUri, content);
-
-    if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(fileUri);
-    } else {
-      Alert.alert("Exportado", `Arquivo salvo em:\n${fileUri}`);
-    }
+    await Clipboard.setStringAsync(content);
+    Alert.alert("Copiado!", "Lista de repetidas copiada para a área de transferência.");
   }
 
   return (
@@ -88,8 +91,8 @@ export default function DuplicatesScreen() {
         </Pressable>
       </View>
 
-      <Pressable style={s.exportBtn} onPress={handleExport}>
-        <Text style={s.btnText}>Exportar lista (.txt)</Text>
+      <Pressable style={s.exportBtn} onPress={handleCopy}>
+        <Text style={s.btnText}>Copiar lista</Text>
       </Pressable>
 
       <Text style={s.summary}>{duplicates.length} figurinha(s) repetida(s)</Text>
