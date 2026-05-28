@@ -16,9 +16,24 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1a1a2e"
       },
-      "package": "com.paninimanager.app"
+      "package": "com.paninimanager.app",
+      "permissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.INTERNET"
+      ]
     },
-    "plugins": ["expo-router", "expo-sqlite", "expo-file-system"],
-    "scheme": "panini-manager"
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      "expo-file-system"
+    ],
+    "scheme": "panini-manager",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "bb9352b5-8610-4ad1-82d3-15bc0853b285"
+      }
+    }
   }
 }
