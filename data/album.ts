@@ -158,3 +158,16 @@ export function getAllStickerCodes(): string[] {
     ...ALBUM_DATA.ccStickers,
   ];
 }
+
+/** Set of all valid sticker codes for fast lookup */
+const VALID_CODES_SET = new Set(getAllStickerCodes());
+
+/** Check if a sticker code is valid */
+export function isValidStickerCode(code: string): boolean {
+  return VALID_CODES_SET.has(code);
+}
+
+/** Normalize user input: remove hyphens, spaces, and uppercase */
+export function normalizeCode(input: string): string {
+  return input.replace(/[-\s]/g, "").toUpperCase();
+}

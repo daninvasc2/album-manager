@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -6,17 +6,18 @@ import {
   FlatList,
   Pressable,
   Alert,
+  ScrollView,
 } from "react-native";
-import { Link } from "expo-router";
-import { ALBUM_DATA, TOTAL_STICKERS } from "../data/album";
+import { Link, useFocusEffect } from "expo-router";
+import { ALBUM_DATA, TOTAL_STICKERS, isValidStickerCode, normalizeCode } from "../data/album";
 import { getOwnedCount, searchOwned, addSticker } from "../database/db";
-import { useFocusEffect } from "expo-router";
 
 export default function HomeScreen() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<{ code: string; quantity: number }[]>([]);
   const [ownedCount, setOwnedCount] = useState(0);
   const [hasSearched, setHasSearched] = useState(false);
+  const [groupFilter, setGroupFilter] = useState("");
 
   useFocusEffect(
     useCallback(() => {
@@ -37,13 +38,22 @@ export default function HomeScreen() {
       return;
     }
     setHasSearched(true);
-    const found = await searchOwned(text.trim());
+    const normalized = normalizeCode(text);
+    const found = await searchOwned(normalized);
     setResults(found);
   }
 
   async function handleAddSticker() {
-    const code = query.trim().toUpperCase();
+    const code = normalizeCode(query);
     if (!code) return;
+
+    if (!isValidStickerCode(code)) {
+      Alert.alert(
+        "Figurinha inválida",
+        `"${code}" não existe no álbum. Verifique o código (ex: BRA1, FWC5, CC3).`
+      );
+      return;
+    }
 
     await addSticker(code);
     Alert.alert("Adicionada!", `${code} foi adicionada à sua coleção.`);
@@ -53,8 +63,22 @@ export default function HomeScreen() {
 
   const percentage = TOTAL_STICKERS > 0 ? ((ownedCount / TOTAL_STICKERS) * 100).toFixed(1) : "0";
 
+  // Filter groups/teams by search
+  const filteredGroups = groupFilter.trim().length === 0
+    ? ALBUM_DATA.groups
+    : ALBUM_DATA.groups
+        .map((group) => ({
+          ...group,
+          teams: group.teams.filter(
+            (team) =>
+              team.name.toLowerCase().includes(groupFilter.toLowerCase()) ||
+              team.code.toLowerCase().includes(groupFilter.toLowerCase())
+          ),
+        }))
+        .filter((group) => group.teams.length > 0);
+
   return (
-    <View className="flex-1 bg-primary p-4">
+    <ScrollView className="flex-1 bg-primary p-4">
       {/* Progress */}
       <View className="mb-4 rounded-xl bg-secondary p-4">
         <Text className="text-white text-lg font-bold">Progresso do Álbum</Text>
@@ -85,32 +109,35 @@ export default function HomeScreen() {
       {hasSearched && (
         <View className="mb-4">
           {results.length > 0 ? (
-            <FlatList
-              data={results}
-              keyExtractor={(item) => item.code}
-              style={{ maxHeight: 200 }}
-              renderItem={({ item }) => (
-                <View className="flex-row justify-between items-center bg-secondary rounded-lg px-4 py-3 mb-2">
+            <>
+              {results.map((item) => (
+                <View key={item.code} className="flex-row justify-between items-center bg-secondary rounded-lg px-4 py-3 mb-2">
                   <Text className="text-white font-bold">{item.code}</Text>
                   <Text className="text-gray-300">
                     Qtd: {item.quantity} {item.quantity > 1 ? "(repetida)" : ""}
                   </Text>
                 </View>
-              )}
-            />
+              ))}
+            </>
           ) : (
             <View className="items-center bg-secondary rounded-lg p-4">
               <Text className="text-gray-300 mb-3">
-                Nenhum resultado para "{query.toUpperCase()}"
+                Nenhum resultado para "{normalizeCode(query)}"
               </Text>
-              <Pressable
-                className="bg-highlight rounded-lg px-6 py-3"
-                onPress={handleAddSticker}
-              >
-                <Text className="text-white font-bold">
-                  Adicionar {query.toUpperCase()} à coleção
+              {isValidStickerCode(normalizeCode(query)) ? (
+                <Pressable
+                  className="bg-highlight rounded-lg px-6 py-3"
+                  onPress={handleAddSticker}
+                >
+                  <Text className="text-white font-bold">
+                    Adicionar {normalizeCode(query)} à coleção
+                  </Text>
+                </Pressable>
+              ) : (
+                <Text className="text-gray-500 text-sm">
+                  Código inválido. Use o formato correto (ex: BRA1, FWC5, CC3).
                 </Text>
-              </Pressable>
+              )}
             </View>
           )}
         </View>
@@ -153,33 +180,40 @@ export default function HomeScreen() {
         </Link>
       </View>
 
-      {/* Groups List */}
+      {/* Groups Filter */}
       <Text className="text-white text-lg font-bold mb-3">Grupos</Text>
-      <FlatList
-        data={ALBUM_DATA.groups}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item: group }) => (
-          <View className="mb-3">
-            <Text className="text-highlight font-bold text-base mb-1">
-              Grupo {group.id}
-            </Text>
-            <View className="flex-row flex-wrap gap-2">
-              {group.teams.map((team) => (
-                <Link
-                  key={team.code}
-                  href={`/team/${team.code}` as any}
-                  asChild
-                >
-                  <Pressable className="bg-secondary rounded-lg px-3 py-2">
-                    <Text className="text-white text-sm">{team.name}</Text>
-                    <Text className="text-gray-400 text-xs">{team.code}</Text>
-                  </Pressable>
-                </Link>
-              ))}
-            </View>
+      <View className="mb-3">
+        <TextInput
+          className="rounded-lg bg-secondary px-4 py-3 text-white"
+          placeholder="Filtrar seleção (ex: Brasil, ARG)..."
+          placeholderTextColor="#888"
+          value={groupFilter}
+          onChangeText={setGroupFilter}
+        />
+      </View>
+
+      {/* Groups List */}
+      {filteredGroups.map((group) => (
+        <View key={group.id} className="mb-3">
+          <Text className="text-highlight font-bold text-base mb-1">
+            Grupo {group.id}
+          </Text>
+          <View className="flex-row flex-wrap gap-2">
+            {group.teams.map((team) => (
+              <Link
+                key={team.code}
+                href={`/team/${team.code}` as any}
+                asChild
+              >
+                <Pressable className="bg-secondary rounded-lg px-3 py-2">
+                  <Text className="text-white text-sm">{team.name}</Text>
+                  <Text className="text-gray-400 text-xs">{team.code}</Text>
+                </Pressable>
+              </Link>
+            ))}
           </View>
-        )}
-      />
-    </View>
+        </View>
+      ))}
+    </ScrollView>
   );
 }
