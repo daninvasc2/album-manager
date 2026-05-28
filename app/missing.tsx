@@ -1,8 +1,9 @@
 import { useState, useCallback } from "react";
-import { View, Text, SectionList } from "react-native";
+import { View, Text, SectionList, StyleSheet } from "react-native";
 import { ALBUM_DATA } from "../data/album";
 import { getOwnedStickers } from "../database/db";
 import { useFocusEffect } from "expo-router";
+import { colors } from "../theme";
 
 interface MissingSection {
   title: string;
@@ -24,36 +25,29 @@ export default function MissingScreen() {
     const result: MissingSection[] = [];
     let count = 0;
 
-    // Special stickers
-    const missingSpecial = ALBUM_DATA.specialStickers.filter((s) => !owned.has(s));
+    const missingSpecial = ALBUM_DATA.specialStickers.filter((st) => !owned.has(st));
     if (missingSpecial.length > 0) {
       result.push({ title: "Especial", data: missingSpecial });
       count += missingSpecial.length;
     }
 
-    // FWC
-    const missingFwc = ALBUM_DATA.fwcStickers.filter((s) => !owned.has(s));
+    const missingFwc = ALBUM_DATA.fwcStickers.filter((st) => !owned.has(st));
     if (missingFwc.length > 0) {
       result.push({ title: "FIFA World Cup History", data: missingFwc });
       count += missingFwc.length;
     }
 
-    // Teams by group
     for (const group of ALBUM_DATA.groups) {
       for (const team of group.teams) {
-        const missing = team.stickers.filter((s) => !owned.has(s));
+        const missing = team.stickers.filter((st) => !owned.has(st));
         if (missing.length > 0) {
-          result.push({
-            title: `${team.name} (${team.code}) — Grupo ${group.id}`,
-            data: missing,
-          });
+          result.push({ title: `${team.name} (${team.code}) — Grupo ${group.id}`, data: missing });
           count += missing.length;
         }
       }
     }
 
-    // CC
-    const missingCc = ALBUM_DATA.ccStickers.filter((s) => !owned.has(s));
+    const missingCc = ALBUM_DATA.ccStickers.filter((st) => !owned.has(st));
     if (missingCc.length > 0) {
       result.push({ title: "Coca-Cola", data: missingCc });
       count += missingCc.length;
@@ -64,33 +58,26 @@ export default function MissingScreen() {
   }
 
   return (
-    <View className="flex-1 bg-primary p-4">
-      {/* Summary */}
-      <View className="mb-4 rounded-xl bg-secondary p-4">
-        <Text className="text-white text-lg font-bold">Figurinhas Faltantes</Text>
-        <Text className="text-gray-300 mt-1">
-          {totalMissing} figurinha(s) faltando para completar o álbum
-        </Text>
+    <View style={s.container}>
+      <View style={s.card}>
+        <Text style={s.title}>Figurinhas Faltantes</Text>
+        <Text style={s.subtitle}>{totalMissing} figurinha(s) faltando para completar o álbum</Text>
       </View>
 
       {totalMissing === 0 ? (
-        <View className="items-center mt-10">
-          <Text className="text-green-400 text-lg font-bold">
-            🎉 Álbum completo! Parabéns!
-          </Text>
+        <View style={s.empty}>
+          <Text style={s.completeText}>🎉 Álbum completo! Parabéns!</Text>
         </View>
       ) : (
         <SectionList
           sections={sections}
           keyExtractor={(item) => item}
           renderSectionHeader={({ section }) => (
-            <Text className="text-highlight font-bold text-sm mt-3 mb-1">
-              {section.title} ({section.data.length})
-            </Text>
+            <Text style={s.sectionHeader}>{section.title} ({section.data.length})</Text>
           )}
           renderItem={({ item }) => (
-            <View className="bg-secondary rounded px-3 py-2 mb-1">
-              <Text className="text-gray-300 text-sm">{item}</Text>
+            <View style={s.item}>
+              <Text style={s.itemText}>{item}</Text>
             </View>
           )}
         />
@@ -98,3 +85,15 @@ export default function MissingScreen() {
     </View>
   );
 }
+
+const s = StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.primary, padding: 16 },
+  card: { backgroundColor: colors.secondary, borderRadius: 12, padding: 16, marginBottom: 16 },
+  title: { color: colors.white, fontSize: 18, fontWeight: "bold" },
+  subtitle: { color: colors.gray300, marginTop: 4 },
+  empty: { alignItems: "center", marginTop: 40 },
+  completeText: { color: colors.green400, fontSize: 18, fontWeight: "bold" },
+  sectionHeader: { color: colors.highlight, fontWeight: "bold", fontSize: 14, marginTop: 12, marginBottom: 4 },
+  item: { backgroundColor: colors.secondary, borderRadius: 4, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 4 },
+  itemText: { color: colors.gray300, fontSize: 14 },
+});

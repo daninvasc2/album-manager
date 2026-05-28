@@ -1,16 +1,10 @@
 import { useState, useCallback } from "react";
-import {
-  View,
-  Text,
-  FlatList,
-  Pressable,
-  Alert,
-  TextInput,
-} from "react-native";
+import { View, Text, FlatList, Pressable, Alert, TextInput, StyleSheet } from "react-native";
 import * as Sharing from "expo-sharing";
 import * as FileSystem from "expo-file-system";
 import { getDuplicates, addSticker, removeSticker } from "../database/db";
 import { useFocusEffect } from "expo-router";
+import { colors } from "../theme";
 
 export default function DuplicatesScreen() {
   const [duplicates, setDuplicates] = useState<{ code: string; extras: number }[]>([]);
@@ -49,7 +43,6 @@ export default function DuplicatesScreen() {
       return;
     }
 
-    // Group by prefix: ESP 1, 2, 3;BRA 4, 5, 6
     const grouped = new Map<string, number[]>();
     for (const { code, extras } of duplicates) {
       const match = code.match(/^([A-Z]+)(\d+)$/);
@@ -80,60 +73,43 @@ export default function DuplicatesScreen() {
   }
 
   return (
-    <View className="flex-1 bg-primary p-4">
-      {/* Add duplicate */}
-      <View className="flex-row mb-4 gap-2">
+    <View style={s.container}>
+      <View style={s.addRow}>
         <TextInput
-          className="flex-1 rounded-lg bg-secondary px-4 py-3 text-white"
+          style={s.input}
           placeholder="Adicionar repetida (ex: BRA5)..."
-          placeholderTextColor="#888"
+          placeholderTextColor={colors.gray500}
           value={addInput}
           onChangeText={setAddInput}
           autoCapitalize="characters"
         />
-        <Pressable
-          className="bg-highlight rounded-lg px-4 justify-center"
-          onPress={handleAdd}
-        >
-          <Text className="text-white font-bold">+</Text>
+        <Pressable style={s.addBtn} onPress={handleAdd}>
+          <Text style={s.btnText}>+</Text>
         </Pressable>
       </View>
 
-      {/* Export button */}
-      <Pressable
-        className="bg-accent rounded-lg px-4 py-3 mb-4 items-center"
-        onPress={handleExport}
-      >
-        <Text className="text-white font-bold">Exportar lista (.txt)</Text>
+      <Pressable style={s.exportBtn} onPress={handleExport}>
+        <Text style={s.btnText}>Exportar lista (.txt)</Text>
       </Pressable>
 
-      {/* Summary */}
-      <Text className="text-gray-300 mb-3">
-        {duplicates.length} figurinha(s) repetida(s)
-      </Text>
+      <Text style={s.summary}>{duplicates.length} figurinha(s) repetida(s)</Text>
 
-      {/* List */}
       {duplicates.length === 0 ? (
-        <View className="items-center mt-10">
-          <Text className="text-gray-500">Nenhuma figurinha repetida ainda.</Text>
+        <View style={s.empty}>
+          <Text style={s.emptyText}>Nenhuma figurinha repetida ainda.</Text>
         </View>
       ) : (
         <FlatList
           data={duplicates}
           keyExtractor={(item) => item.code}
           renderItem={({ item }) => (
-            <View className="flex-row justify-between items-center bg-secondary rounded-lg px-4 py-3 mb-2">
+            <View style={s.row}>
               <View>
-                <Text className="text-white font-bold">{item.code}</Text>
-                <Text className="text-gray-400 text-xs">
-                  {item.extras} extra(s)
-                </Text>
+                <Text style={s.code}>{item.code}</Text>
+                <Text style={s.extras}>{item.extras} extra(s)</Text>
               </View>
-              <Pressable
-                className="bg-red-700 rounded-lg px-3 py-2"
-                onPress={() => handleRemove(item.code)}
-              >
-                <Text className="text-white text-sm">- Remover</Text>
+              <Pressable style={s.removeBtn} onPress={() => handleRemove(item.code)}>
+                <Text style={s.removeBtnText}>- Remover</Text>
               </Pressable>
             </View>
           )}
@@ -142,3 +118,20 @@ export default function DuplicatesScreen() {
     </View>
   );
 }
+
+const s = StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.primary, padding: 16 },
+  addRow: { flexDirection: "row", gap: 8, marginBottom: 16 },
+  input: { flex: 1, backgroundColor: colors.secondary, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 12, color: colors.white },
+  addBtn: { backgroundColor: colors.highlight, borderRadius: 8, paddingHorizontal: 16, justifyContent: "center" },
+  exportBtn: { backgroundColor: colors.accent, borderRadius: 8, paddingVertical: 12, alignItems: "center", marginBottom: 16 },
+  btnText: { color: colors.white, fontWeight: "bold" },
+  summary: { color: colors.gray300, marginBottom: 12 },
+  empty: { alignItems: "center", marginTop: 40 },
+  emptyText: { color: colors.gray500 },
+  row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: colors.secondary, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 12, marginBottom: 8 },
+  code: { color: colors.white, fontWeight: "bold" },
+  extras: { color: colors.gray400, fontSize: 12 },
+  removeBtn: { backgroundColor: colors.red700, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8 },
+  removeBtnText: { color: colors.white, fontSize: 12 },
+});
