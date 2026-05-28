@@ -1,0 +1,6 @@
+# EAS ignore - reduce upload size
+__tests__/
+scripts/
+.kiro/
+.vscode/
+.expo/

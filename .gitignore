@@ -8,6 +8,7 @@ web-build/
 
 # Bun
 bun.lockb
+bun.lock
 
 # Native builds
 android/

@@ -7,16 +7,12 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
-      },
-      "node": "20.20.2",
-      "bun": "1.3.10"
+      }
     },
     "production": {
       "android": {
         "buildType": "apk"
-      },
-      "node": "20.20.2",
-      "bun": "1.3.10"
+      }
     }
   }
 }
