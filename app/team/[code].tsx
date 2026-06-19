@@ -1,17 +1,21 @@
 import { useState, useCallback } from "react";
 import { View, Text, FlatList, Pressable, Alert, StyleSheet } from "react-native";
-import { useLocalSearchParams, useFocusEffect } from "expo-router";
+import { useLocalSearchParams, useFocusEffect, useRouter } from "expo-router";
 import { ALBUM_DATA } from "../../data/album";
 import { getOwnedStickers, addSticker, removeSticker } from "../../database/db";
+import { getTeamNavigation } from "../../data/teamOrder";
 import { colors } from "../../theme";
 
 export default function TeamScreen() {
   const { code } = useLocalSearchParams<{ code: string }>();
   const [owned, setOwned] = useState<Map<string, number>>(new Map());
+  const router = useRouter();
 
   const team = ALBUM_DATA.groups
     .flatMap((g) => g.teams)
     .find((t) => t.code === code);
+
+  const nav = getTeamNavigation(code);
 
   useFocusEffect(
     useCallback(() => {
@@ -41,6 +45,10 @@ export default function TeamScreen() {
         },
       },
     ]);
+  }
+
+  function navigateTo(teamCode: string) {
+    router.replace(`/team/${teamCode}` as any);
   }
 
   if (!team) {
@@ -90,6 +98,26 @@ export default function TeamScreen() {
           );
         }}
       />
+
+      {/* Navigation arrows */}
+      <View style={s.navRow}>
+        {nav.prev ? (
+          <Pressable style={s.navBtn} onPress={() => navigateTo(nav.prev!)}>
+            <Text style={s.navArrow}>◀</Text>
+            <Text style={s.navLabel}>{nav.prevName}</Text>
+          </Pressable>
+        ) : (
+          <View style={s.navSpacer} />
+        )}
+        {nav.next ? (
+          <Pressable style={s.navBtn} onPress={() => navigateTo(nav.next!)}>
+            <Text style={s.navLabel}>{nav.nextName}</Text>
+            <Text style={s.navArrow}>▶</Text>
+          </Pressable>
+        ) : (
+          <View style={s.navSpacer} />
+        )}
+      </View>
     </View>
   );
 }
@@ -108,4 +136,9 @@ const s = StyleSheet.create({
   stickerQty: { color: colors.green300, fontSize: 11, marginTop: 2 },
   stickerMissingText: { color: colors.gray400, fontWeight: "bold", fontSize: 11 },
   addText: { color: colors.highlight, fontSize: 11, marginTop: 2 },
+  navRow: { flexDirection: "row", justifyContent: "space-between", paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.gray700 },
+  navBtn: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.secondary, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10 },
+  navArrow: { color: colors.highlight, fontSize: 16 },
+  navLabel: { color: colors.white, fontSize: 12 },
+  navSpacer: { flex: 1 },
 });

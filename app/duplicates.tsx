@@ -1,13 +1,21 @@
 import { useState, useCallback } from "react";
-import { View, Text, FlatList, Pressable, Alert, TextInput, StyleSheet } from "react-native";
+import { View, Text, SectionList, Pressable, Alert, TextInput, StyleSheet } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { getDuplicates, addSticker, removeSticker } from "../database/db";
-import { isValidStickerCode, normalizeCode } from "../data/album";
+import { ALBUM_DATA, isValidStickerCode, normalizeCode } from "../data/album";
+import { formatForClipboard } from "../data/teamOrder";
 import { useFocusEffect } from "expo-router";
 import { colors } from "../theme";
 
+interface DuplicateSection {
+  title: string;
+  data: { code: string; extras: number }[];
+}
+
 export default function DuplicatesScreen() {
-  const [duplicates, setDuplicates] = useState<{ code: string; extras: number }[]>([]);
+  const [sections, setSections] = useState<DuplicateSection[]>([]);
+  const [totalDuplicates, setTotalDuplicates] = useState(0);
+  const [allDuplicates, setAllDuplicates] = useState<{ code: string; extras: number }[]>([]);
   const [addInput, setAddInput] = useState("");
 
   useFocusEffect(
@@ -18,10 +26,38 @@ export default function DuplicatesScreen() {
 
   async function loadDuplicates() {
     const map = await getDuplicates();
-    const list = Array.from(map.entries())
-      .map(([code, extras]) => ({ code, extras }))
-      .sort((a, b) => a.code.localeCompare(b.code));
-    setDuplicates(list);
+    const allItems = Array.from(map.entries()).map(([code, extras]) => ({ code, extras }));
+    setAllDuplicates(allItems);
+    setTotalDuplicates(allItems.length);
+
+    // Group by section following album order
+    const result: DuplicateSection[] = [];
+    const codeSet = new Set(allItems.map((i) => i.code));
+    const codeMap = new Map(allItems.map((i) => [i.code, i]));
+
+    // Special
+    const specialDupes = ALBUM_DATA.specialStickers.filter((s) => codeSet.has(s)).map((s) => codeMap.get(s)!);
+    if (specialDupes.length > 0) result.push({ title: "Especial", data: specialDupes });
+
+    // FWC
+    const fwcDupes = ALBUM_DATA.fwcStickers.filter((s) => codeSet.has(s)).map((s) => codeMap.get(s)!);
+    if (fwcDupes.length > 0) result.push({ title: "FIFA World Cup History", data: fwcDupes });
+
+    // Teams by group
+    for (const group of ALBUM_DATA.groups) {
+      for (const team of group.teams) {
+        const teamDupes = team.stickers.filter((s) => codeSet.has(s)).map((s) => codeMap.get(s)!);
+        if (teamDupes.length > 0) {
+          result.push({ title: `${team.name} (${team.code}) — Grupo ${group.id}`, data: teamDupes });
+        }
+      }
+    }
+
+    // CC
+    const ccDupes = ALBUM_DATA.ccStickers.filter((s) => codeSet.has(s)).map((s) => codeMap.get(s)!);
+    if (ccDupes.length > 0) result.push({ title: "Coca-Cola", data: ccDupes });
+
+    setSections(result);
   }
 
   async function handleAdd() {
@@ -47,30 +83,12 @@ export default function DuplicatesScreen() {
   }
 
   async function handleCopy() {
-    if (duplicates.length === 0) {
+    if (allDuplicates.length === 0) {
       Alert.alert("Vazio", "Você não tem figurinhas repetidas para copiar.");
       return;
     }
 
-    const grouped = new Map<string, number[]>();
-    for (const { code, extras } of duplicates) {
-      const match = code.match(/^([A-Z]+)(\d+)$/);
-      if (match) {
-        const [, prefix, num] = match;
-        if (!grouped.has(prefix)) grouped.set(prefix, []);
-        for (let i = 0; i < extras; i++) {
-          grouped.get(prefix)!.push(parseInt(num));
-        }
-      }
-    }
-
-    const lines: string[] = [];
-    for (const [prefix, nums] of Array.from(grouped.entries()).sort()) {
-      nums.sort((a, b) => a - b);
-      lines.push(`${prefix} ${nums.join(", ")}`);
-    }
-    const content = lines.join("; ");
-
+    const content = formatForClipboard(allDuplicates);
     await Clipboard.setStringAsync(content);
     Alert.alert("Copiado!", "Lista de repetidas copiada para a área de transferência.");
   }
@@ -95,16 +113,19 @@ export default function DuplicatesScreen() {
         <Text style={s.btnText}>Copiar lista</Text>
       </Pressable>
 
-      <Text style={s.summary}>{duplicates.length} figurinha(s) repetida(s)</Text>
+      <Text style={s.summary}>{totalDuplicates} figurinha(s) repetida(s)</Text>
 
-      {duplicates.length === 0 ? (
+      {totalDuplicates === 0 ? (
         <View style={s.empty}>
           <Text style={s.emptyText}>Nenhuma figurinha repetida ainda.</Text>
         </View>
       ) : (
-        <FlatList
-          data={duplicates}
+        <SectionList
+          sections={sections}
           keyExtractor={(item) => item.code}
+          renderSectionHeader={({ section }) => (
+            <Text style={s.sectionHeader}>{section.title} ({section.data.length})</Text>
+          )}
           renderItem={({ item }) => (
             <View style={s.row}>
               <View>
@@ -132,6 +153,7 @@ const s = StyleSheet.create({
   summary: { color: colors.gray300, marginBottom: 12 },
   empty: { alignItems: "center", marginTop: 40 },
   emptyText: { color: colors.gray500 },
+  sectionHeader: { color: colors.highlight, fontWeight: "bold", fontSize: 14, marginTop: 12, marginBottom: 4 },
   row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: colors.secondary, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 12, marginBottom: 8 },
   code: { color: colors.white, fontWeight: "bold" },
   extras: { color: colors.gray400, fontSize: 12 },
